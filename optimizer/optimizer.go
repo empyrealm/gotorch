@@ -3,7 +3,7 @@ package optimizer
 import (
 	"io"
 
-	"github.com/lwch/gotorch/tensor"
+	"github.com/empyrealm/gotorch/tensor"
 )
 
 type Options interface {

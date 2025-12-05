@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/lwch/gotorch/consts"
-	"github.com/lwch/gotorch/loss"
-	"github.com/lwch/gotorch/nn"
-	"github.com/lwch/gotorch/optimizer"
-	"github.com/lwch/gotorch/tensor"
+	"github.com/empyrealm/gotorch/consts"
+	"github.com/empyrealm/gotorch/loss"
+	"github.com/empyrealm/gotorch/nn"
+	"github.com/empyrealm/gotorch/optimizer"
+	"github.com/empyrealm/gotorch/tensor"
 )
 
 const hiddenSize = 10

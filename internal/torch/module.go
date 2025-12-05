@@ -7,7 +7,7 @@ import (
 	"math"
 	"runtime"
 
-	"github.com/lwch/gotorch/consts"
+	"github.com/empyrealm/gotorch/consts"
 	"github.com/lwch/logging"
 )
 

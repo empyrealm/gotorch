@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/lwch/gotorch/consts"
-	"github.com/lwch/gotorch/internal/half"
+	"github.com/empyrealm/gotorch/consts"
+	"github.com/empyrealm/gotorch/internal/half"
 )
 
 // #include "tensor.h"

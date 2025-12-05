@@ -1,9 +1,9 @@
 package loss
 
 import (
-	"github.com/lwch/gotorch/consts"
-	"github.com/lwch/gotorch/internal/torch"
-	"github.com/lwch/gotorch/tensor"
+	"github.com/empyrealm/gotorch/consts"
+	"github.com/empyrealm/gotorch/internal/torch"
+	"github.com/empyrealm/gotorch/tensor"
 )
 
 type mseConfig struct {

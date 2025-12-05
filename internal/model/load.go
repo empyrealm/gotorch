@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/lwch/gotorch/internal/model/storage"
-	"github.com/lwch/gotorch/internal/model/torch"
+	"github.com/empyrealm/gotorch/internal/model/storage"
+	"github.com/empyrealm/gotorch/internal/model/torch"
 	"github.com/nlpodyssey/gopickle/pickle"
 	"github.com/nlpodyssey/gopickle/types"
 )

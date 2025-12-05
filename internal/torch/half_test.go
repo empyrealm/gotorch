@@ -3,7 +3,7 @@ package torch
 import (
 	"testing"
 
-	"github.com/lwch/gotorch/consts"
+	"github.com/empyrealm/gotorch/consts"
 )
 
 func TestHalf(t *testing.T) {

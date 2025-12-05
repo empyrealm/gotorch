@@ -3,9 +3,9 @@ package model
 import (
 	"sync"
 
-	"github.com/lwch/gotorch/internal/model"
-	"github.com/lwch/gotorch/internal/model/storage"
-	"github.com/lwch/gotorch/tensor"
+	"github.com/empyrealm/gotorch/internal/model"
+	"github.com/empyrealm/gotorch/internal/model/storage"
+	"github.com/empyrealm/gotorch/tensor"
 )
 
 type Model struct {

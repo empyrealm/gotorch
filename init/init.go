@@ -1,8 +1,8 @@
 package init
 
 import (
-	"github.com/lwch/gotorch/internal/torch"
-	"github.com/lwch/gotorch/tensor"
+	"github.com/empyrealm/gotorch/internal/torch"
+	"github.com/empyrealm/gotorch/tensor"
 )
 
 func KaimingUniform(t *tensor.Tensor, a float64) {

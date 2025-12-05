@@ -3,7 +3,7 @@ package torch
 import (
 	"fmt"
 
-	"github.com/lwch/gotorch/internal/model/storage"
+	"github.com/empyrealm/gotorch/internal/model/storage"
 	"github.com/nlpodyssey/gopickle/types"
 )
 

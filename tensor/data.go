@@ -1,8 +1,8 @@
 package tensor
 
 import (
-	"github.com/lwch/gotorch/consts"
-	"github.com/lwch/gotorch/internal/torch"
+	"github.com/empyrealm/gotorch/consts"
+	"github.com/empyrealm/gotorch/internal/torch"
 )
 
 func ARange(n int, dtype consts.ScalarType, opts ...Option) *Tensor {

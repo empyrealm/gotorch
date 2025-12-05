@@ -1,6 +1,6 @@
 package tensor
 
-import "github.com/lwch/gotorch/consts"
+import "github.com/empyrealm/gotorch/consts"
 
 type options struct {
 	shapes []int64

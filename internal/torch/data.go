@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/lwch/gotorch/consts"
+	"github.com/empyrealm/gotorch/consts"
 )
 
 // #include "tensor.h"

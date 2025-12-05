@@ -1,7 +1,7 @@
 package tensor
 
 import (
-	"github.com/lwch/gotorch/internal/torch"
+	"github.com/empyrealm/gotorch/internal/torch"
 )
 
 type conv1DOpt struct {

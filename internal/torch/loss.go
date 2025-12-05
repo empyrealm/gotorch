@@ -1,7 +1,7 @@
 package torch
 
 import (
-	"github.com/lwch/gotorch/consts"
+	"github.com/empyrealm/gotorch/consts"
 )
 
 // #include "loss.h"

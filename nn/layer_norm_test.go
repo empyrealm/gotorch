@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/lwch/gotorch/consts"
-	"github.com/lwch/gotorch/tensor"
+	"github.com/empyrealm/gotorch/consts"
+	"github.com/empyrealm/gotorch/tensor"
 )
 
 func TestLayerNorm(t *testing.T) {

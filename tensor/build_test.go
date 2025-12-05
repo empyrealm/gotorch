@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/lwch/gotorch/consts"
+	"github.com/empyrealm/gotorch/consts"
 )
 
 func TestBuildInfo(t *testing.T) {

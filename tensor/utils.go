@@ -1,7 +1,7 @@
 package tensor
 
 import (
-	"github.com/lwch/gotorch/internal/torch"
+	"github.com/empyrealm/gotorch/internal/torch"
 )
 
 func ScaledDotProductAttention(q, k, v, mask *Tensor, drouput float64, isCausal bool) *Tensor {

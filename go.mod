@@ -1,4 +1,4 @@
-module github.com/lwch/gotorch
+module github.com/empyrealm/gotorch
 
 go 1.20
 

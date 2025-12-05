@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/lwch/gotorch/consts"
+	"github.com/empyrealm/gotorch/consts"
 )
 
 func TestScaledDotProductAttention(t *testing.T) {
