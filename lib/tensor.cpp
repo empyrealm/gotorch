@@ -647,36 +647,41 @@ void env_vectorized_step(char **err,
             current_prices,
             *entry_prices);
         
-        // ========== ADVANCED REWARD COMPUTATION ==========
-        // 1. Normalized PnL (as percentage of equity).
-        auto pnl_pct = close_pnl / (*equity + 1e-8) * 100.0;
+        // ========== IMPROVED REWARD COMPUTATION ==========
+        // Use safe divisors to prevent NaN/Inf.
+        auto safe_equity = torch::clamp(*equity, 1.0, 1e10);
+        auto safe_max_eq = torch::clamp(new_max_eq, 1.0, 1e10);
+        auto safe_entry = torch::clamp(new_entry, 0.01, 1e10);
         
-        // 2. Fee penalty (as percentage).
-        auto fee_pct = fees / (*equity + 1e-8) * 100.0;
+        // 1. Normalized PnL (as percentage of equity, clipped).
+        auto pnl_pct = torch::clamp(close_pnl / safe_equity * 100.0, -10.0, 10.0);
         
-        // 3. Drawdown penalty (quadratic - heavily penalize large drawdowns).
-        auto drawdown = (new_max_eq - new_equity) / (new_max_eq + 1e-8);
-        auto dd_penalty = torch::pow(drawdown, 2.0) * 10.0;
+        // 2. Fee penalty (as percentage, clipped).
+        auto fee_pct = torch::clamp(fees / safe_equity * 100.0, 0.0, 1.0);
+        
+        // 3. Drawdown penalty (quadratic, clipped).
+        auto drawdown = torch::clamp((safe_max_eq - new_equity) / safe_max_eq, 0.0, 1.0);
+        auto dd_penalty = drawdown * drawdown * 5.0;  // Reduced from 10.0
         
         // 4. Churn penalty (discourage excessive trading).
-        auto churn_penalty = position_changed.to(torch::kFloat32) * 0.01;
+        auto churn_penalty = position_changed.to(torch::kFloat32) * 0.005;  // Reduced
         
         // 5. Position holding bonus (reward conviction on winning trades).
         auto holding = (new_pos != 0).to(torch::kFloat32);
         auto winning = (close_pnl > 0).to(torch::kFloat32);
         auto hold_bonus = holding * winning * 0.001;
         
-        // 6. Unrealized PnL signal (encourage holding winners, cutting losers).
-        auto unrealized = torch::where(
+        // 6. Unrealized PnL signal (soft, bounded).
+        auto price_change = torch::clamp((current_prices - safe_entry) / safe_entry, -0.1, 0.1);
+        auto unrealized_signal = torch::where(
             new_pos != 0,
-            new_pos * (current_prices - new_entry) / (new_entry + 1e-8),
+            torch::tanh(new_pos * price_change * 50.0) * 0.005,
             torch::zeros_like(new_pos));
-        auto unrealized_signal = torch::tanh(unrealized * 10.0) * 0.01;  // Soft signal.
         
         // 7. Risk-adjusted: penalize downside more than rewarding upside.
         auto downside_penalty = torch::where(
             close_pnl < 0,
-            torch::abs(close_pnl) / (*equity + 1e-8) * 150.0,  // 1.5x penalty for losses.
+            torch::clamp(torch::abs(close_pnl) / safe_equity * 50.0, 0.0, 5.0),
             torch::zeros_like(close_pnl));
         
         // Combine all reward components.
@@ -688,7 +693,8 @@ void env_vectorized_step(char **err,
                      + unrealized_signal
                      - downside_penalty;
         
-        // Clip to [-1, 1] for stability.
+        // Final clamp for stability - ensures no NaN/Inf.
+        rewards = torch::nan_to_num(rewards, 0.0, -1.0, 1.0);
         rewards = torch::clamp(rewards, -1.0, 1.0);
         
         // Advance step.
