@@ -162,8 +162,30 @@ func (env *VecEnv) Step(actions *tensor.Tensor) (states, rewards, dones *tensor.
 }
 
 // getCurrentState builds the current observation state.
+// Returns [num_envs, feature_dim + 2] tensor (market features + position + equity)
 func (env *VecEnv) getCurrentState() *tensor.Tensor {
-	return &tensor.Tensor{}
+	if env.marketData == nil {
+		// No market data loaded, return zeros.
+		return env.outStates
+	}
+
+	// Get current market features at step index 0 (after reset).
+	// marketData shape: [num_envs, time_steps, feature_dim]
+	// stepIndices after reset are 0, so we need features at index 0.
+
+	// Use narrow to select first timestep: marketData[:, 0:1, :] then squeeze.
+	// Narrow: (dim=1, start=0, length=1)
+	currentFeatures := env.marketData.Narrow(1, 0, 1).Squeeze(1)
+	// Result shape: [num_envs, feature_dim]
+
+	// Build state using env_build_state kernel.
+	state := tensor.New(torch.EnvBuildState(
+		currentFeatures.Tensor(),
+		env.positions.Tensor(),
+		env.equity.Tensor(),
+	))
+
+	return state
 }
 
 // GetNumEnvs returns the number of parallel environments.

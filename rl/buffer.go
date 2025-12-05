@@ -84,10 +84,10 @@ func (b *RolloutBuffer) Add(state, action, reward, done, value, logProb *tensor.
 
 // ComputeReturnsAndAdvantages computes GAE on GPU.
 func (b *RolloutBuffer) ComputeReturnsAndAdvantages(lastValue *tensor.Tensor, gamma, gaeLambda float64) {
-	// Create gamma and lambda tensors on GPU.
-	gammaT := tensor.FromFloat32([]float32{float32(gamma)}, tensor.WithDevice(b.device))
-	lambdaT := tensor.FromFloat32([]float32{float32(gaeLambda)}, tensor.WithDevice(b.device))
-	oneT := tensor.FromFloat32([]float32{1.0}, tensor.WithDevice(b.device))
+	// Create scalar tensors on GPU.
+	gammaT := tensor.FromFloat32([]float32{float32(gamma)}, tensor.WithShapes(1), tensor.WithDevice(b.device))
+	lambdaT := tensor.FromFloat32([]float32{float32(gaeLambda)}, tensor.WithShapes(1), tensor.WithDevice(b.device))
+	oneT := tensor.FromFloat32([]float32{1.0}, tensor.WithShapes(1), tensor.WithDevice(b.device))
 
 	// Initialize last advantage.
 	lastAdv := tensor.Zeros(consts.KFloat, tensor.WithShapes(b.numEnvs), tensor.WithDevice(b.device))
@@ -117,7 +117,7 @@ func (b *RolloutBuffer) ComputeReturnsAndAdvantages(lastValue *tensor.Tensor, ga
 	// Normalize advantages on GPU.
 	advMean := b.advantages.MeanAll()
 	advStd := b.advantages.StdAll(false)
-	eps := tensor.FromFloat32([]float32{1e-8}, tensor.WithDevice(b.device))
+	eps := tensor.FromFloat32([]float32{1e-8}, tensor.WithShapes(1), tensor.WithDevice(b.device))
 	b.advantages = b.advantages.Sub(advMean).Div(advStd.Add(eps))
 }
 
@@ -231,7 +231,7 @@ func (b *PrioritizedBuffer) Sample(batchSize int64) (states, actions, rewards, n
 
 	// Compute importance sampling weights.
 	// w_i = (N * P(i))^(-beta)
-	nT := tensor.FromFloat32([]float32{float32(b.size)}, tensor.WithDevice(b.device))
+	nT := tensor.FromFloat32([]float32{float32(b.size)}, tensor.WithShapes(1), tensor.WithDevice(b.device))
 	selectedProbs := probs.IndexSelect(0, indices)
 	weights = nT.Mul(selectedProbs).Pow(-b.beta)
 	weights = weights.Div(weights.MaxAll()) // Normalize by max weight.
@@ -249,7 +249,7 @@ func (b *PrioritizedBuffer) Sample(batchSize int64) (states, actions, rewards, n
 // UpdatePriorities updates priorities for sampled transitions.
 func (b *PrioritizedBuffer) UpdatePriorities(indices *tensor.Tensor, tdErrors *tensor.Tensor) {
 	// New priorities = |TD error| + epsilon.
-	eps := tensor.FromFloat32([]float32{1e-6}, tensor.WithDevice(b.device))
+	eps := tensor.FromFloat32([]float32{1e-6}, tensor.WithShapes(1), tensor.WithDevice(b.device))
 	newPriorities := tdErrors.Abs().Add(eps)
 
 	// Update at indices (scatter on GPU).
