@@ -71,12 +71,18 @@ void tensor_copy_data(tensor t, void *data)
 void tensor_set_data(char **err, tensor t, void *data)
 {
     return auto_catch_void([t, data]() {
+        // Use no_grad to allow in-place modification of leaf variables.
+        torch::NoGradGuard no_grad;
+        
         // For CUDA tensors, we need to copy to CPU first, then back.
         if (t->device().is_cuda()) {
-            torch::Tensor cpu_tensor = t->to(torch::kCPU);
+            // Create CPU tensor with same shape and copy data into it.
+            torch::Tensor cpu_tensor = torch::empty_like(*t, torch::TensorOptions().device(torch::kCPU));
             memcpy(cpu_tensor.data_ptr(), data, cpu_tensor.numel() * cpu_tensor.element_size());
-            t->copy_(cpu_tensor.to(t->device()));
+            // Copy back to original CUDA tensor.
+            t->copy_(cpu_tensor);
         } else {
+            // Direct memcpy for CPU tensors.
             memcpy(t->data_ptr(), data, t->numel() * t->element_size());
         }
     }, err);
