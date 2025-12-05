@@ -69,7 +69,7 @@ void tensor_copy_data(tensor t, void *data)
         torch::Tensor cpu_tensor = t->to(torch::kCPU);
         memcpy(data, cpu_tensor.data_ptr(), cpu_tensor.numel() * cpu_tensor.element_size());
     } else {
-        memcpy(data, t->data_ptr(), t->numel() * t->element_size());
+    memcpy(data, t->data_ptr(), t->numel() * t->element_size());
     }
 }
 

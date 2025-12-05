@@ -39,6 +39,17 @@ func Cat(tensors []*Tensor, dim int) *Tensor {
 	return New(ptr)
 }
 
+// Stack stacks tensors along a new dimension.
+// All tensors must have the same shape.
+func Stack(tensors []*Tensor, dim int) *Tensor {
+	list := make([]torch.Tensor, len(tensors))
+	for i, t := range tensors {
+		list[i] = t.t
+	}
+	ptr := torch.Stack(list, dim)
+	return New(ptr)
+}
+
 func SVD(t *Tensor) (*Tensor, *Tensor, *Tensor) {
 	u, s, v := torch.SVD(t.t)
 	return New(u), New(s), New(v)
