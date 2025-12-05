@@ -127,6 +127,23 @@ extern "C"
                                     tensor step_indices,
                                     double initial_equity);
 
+    // Comparison operations
+    GOTORCH_API tensor tensor_eq(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_ne(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_lt(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_le(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_gt(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_ge(char **err, tensor a, tensor b);
+
+    // Logical operations
+    GOTORCH_API tensor tensor_logical_and(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_logical_or(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_logical_not(char **err, tensor t);
+
+    // Element-wise min/max
+    GOTORCH_API tensor tensor_maximum(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_minimum(char **err, tensor a, tensor b);
+
 #ifdef __cplusplus
 }
 #endif
