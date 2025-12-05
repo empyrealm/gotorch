@@ -58,6 +58,10 @@ extern "C"
     GOTORCH_API void init_normal(char **err, tensor t, double mean, double std);
     GOTORCH_API void init_zeros(char **err, tensor t);
     GOTORCH_API tensor tensor_detach(tensor t);
+    // serialization (.pt format)
+    GOTORCH_API void tensors_save(char **err, tensor *tensors, size_t count, const char *path);
+    GOTORCH_API size_t tensors_load(char **err, const char *path, tensor **out_tensors);
+    GOTORCH_API void tensors_free_array(tensor *tensors, size_t count);
 
 #ifdef __cplusplus
 }

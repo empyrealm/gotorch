@@ -177,3 +177,49 @@ tensor tensor_detach(tensor t)
 {
     return new torch::Tensor(t->detach());
 }
+
+// ============================================================================
+// Model Serialization (.pt format)
+// ============================================================================
+
+void tensors_save(char **err, tensor *tensors, size_t count, const char *path)
+{
+    return auto_catch_void([tensors, count, path]()
+                           {
+                               std::vector<torch::Tensor> tensor_list;
+                               tensor_list.reserve(count);
+                               for (size_t i = 0; i < count; i++) {
+                                   tensor_list.push_back(*tensors[i]);
+                               }
+                               torch::save(tensor_list, path);
+                           },
+                           err);
+}
+
+size_t tensors_load(char **err, const char *path, tensor **out_tensors)
+{
+    std::vector<torch::Tensor> tensor_list;
+    
+    try {
+        torch::load(tensor_list, path);
+    } catch (const std::exception &e) {
+        *err = strdup(e.what());
+        return 0;
+    }
+    
+    // Allocate output array.
+    *out_tensors = (tensor *)malloc(tensor_list.size() * sizeof(tensor));
+    for (size_t i = 0; i < tensor_list.size(); i++) {
+        (*out_tensors)[i] = new torch::Tensor(tensor_list[i]);
+    }
+    
+    return tensor_list.size();
+}
+
+void tensors_free_array(tensor *tensors, size_t count)
+{
+    for (size_t i = 0; i < count; i++) {
+        delete tensors[i];
+    }
+    free(tensors);
+}
