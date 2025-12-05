@@ -84,6 +84,48 @@ extern "C"
     GOTORCH_API tensor tensor_std_all(char **err, tensor t, bool unbiased);
     GOTORCH_API tensor tensor_pow_tensor(char **err, tensor t, tensor exp);
     GOTORCH_API tensor tensor_ones(char **err, int64_t *shape, size_t shape_len, int8_t dtype, int8_t device);
+    // Mixed precision
+    GOTORCH_API tensor tensor_half(char **err, tensor t);
+    GOTORCH_API tensor tensor_bfloat16(char **err, tensor t);
+    GOTORCH_API tensor tensor_float32(char **err, tensor t);
+    GOTORCH_API bool tensor_is_half(tensor t);
+    GOTORCH_API bool tensor_is_bfloat16(tensor t);
+    GOTORCH_API tensor tensor_scale(char **err, tensor t, double scale);
+    GOTORCH_API bool tensor_is_finite(tensor t);
+    // Vectorized trading environment
+    GOTORCH_API tensor env_update_positions(char **err, tensor positions, tensor actions);
+    GOTORCH_API tensor env_calculate_pnl(char **err, tensor positions, tensor current_prices, tensor entry_prices);
+    GOTORCH_API tensor env_calculate_fees(char **err, tensor volumes, double fee_rate);
+    GOTORCH_API tensor env_calculate_rewards(char **err, tensor pnl, tensor fees, double drawdown_penalty, tensor max_equity);
+    GOTORCH_API tensor env_check_done(char **err, tensor steps, int64_t max_steps, tensor equity, double min_equity);
+    GOTORCH_API tensor env_build_state(char **err, tensor market_features, tensor positions, tensor equity);
+    GOTORCH_API void env_vectorized_step(char **err,
+                                         tensor market_data,
+                                         tensor step_indices,
+                                         tensor positions,
+                                         tensor entry_prices,
+                                         tensor equity,
+                                         tensor max_equity,
+                                         tensor actions,
+                                         double fee_rate,
+                                         double min_equity,
+                                         int64_t max_steps,
+                                         tensor out_states,
+                                         tensor out_rewards,
+                                         tensor out_dones,
+                                         tensor out_positions,
+                                         tensor out_entry_prices,
+                                         tensor out_equity,
+                                         tensor out_max_equity,
+                                         tensor out_step_indices);
+    GOTORCH_API void env_reset_done(char **err,
+                                    tensor dones,
+                                    tensor positions,
+                                    tensor entry_prices,
+                                    tensor equity,
+                                    tensor max_equity,
+                                    tensor step_indices,
+                                    double initial_equity);
 
 #ifdef __cplusplus
 }

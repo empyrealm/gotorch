@@ -417,3 +417,282 @@ tensor tensor_ones(char **err, int64_t *shape, size_t shape_len, int8_t dtype, i
                              },
                              err);
 }
+
+// ============================================================================
+// Mixed Precision Support (AMP - Automatic Mixed Precision)
+// ============================================================================
+
+// Convert to half precision (fp16).
+tensor tensor_half(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->to(torch::kHalf)); },
+                             err);
+}
+
+// Convert to bfloat16.
+tensor tensor_bfloat16(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->to(torch::kBFloat16)); },
+                             err);
+}
+
+// Convert to float32.
+tensor tensor_float32(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->to(torch::kFloat32)); },
+                             err);
+}
+
+// Check if tensor is half precision.
+bool tensor_is_half(tensor t)
+{
+    return t->scalar_type() == torch::kHalf;
+}
+
+// Check if tensor is bfloat16.
+bool tensor_is_bfloat16(tensor t)
+{
+    return t->scalar_type() == torch::kBFloat16;
+}
+
+// ============================================================================
+// Gradient Scaling for Mixed Precision
+// ============================================================================
+
+// Scale tensor (for gradient scaling in AMP).
+tensor tensor_scale(char **err, tensor t, double scale)
+{
+    return auto_catch_tensor([t, scale]()
+                             { return new torch::Tensor(*t * scale); },
+                             err);
+}
+
+// Unscale and check for inf/nan (returns true if valid).
+bool tensor_is_finite(tensor t)
+{
+    return torch::isfinite(*t).all().item<bool>();
+}
+
+// ============================================================================
+// Vectorized Trading Environment Operations (CUDA)
+// All operations work on batches of environments simultaneously.
+// ============================================================================
+
+// Vectorized position update: new_pos = action (0=flat, 1=long, 2=short).
+// positions: [batch_size], actions: [batch_size]
+tensor env_update_positions(char **err, tensor positions, tensor actions)
+{
+    return auto_catch_tensor([positions, actions]()
+                             {
+                                 // Map actions: 0->0 (flat), 1->1 (long), 2->-1 (short)
+                                 auto new_pos = torch::where(
+                                     *actions == 0,
+                                     torch::zeros_like(*positions),
+                                     torch::where(*actions == 1,
+                                                  torch::ones_like(*positions),
+                                                  -torch::ones_like(*positions)));
+                                 return new torch::Tensor(new_pos);
+                             },
+                             err);
+}
+
+// Vectorized PnL calculation.
+// positions: [batch_size], current_prices: [batch_size], entry_prices: [batch_size]
+tensor env_calculate_pnl(char **err, tensor positions, tensor current_prices, tensor entry_prices)
+{
+    return auto_catch_tensor([positions, current_prices, entry_prices]()
+                             {
+                                 // PnL = position * (current_price - entry_price) / entry_price
+                                 auto price_change = (*current_prices - *entry_prices) / (*entry_prices + 1e-8);
+                                 return new torch::Tensor(*positions * price_change);
+                             },
+                             err);
+}
+
+// Vectorized fee calculation.
+// volumes: [batch_size], fee_rate: scalar
+tensor env_calculate_fees(char **err, tensor volumes, double fee_rate)
+{
+    return auto_catch_tensor([volumes, fee_rate]()
+                             { return new torch::Tensor(*volumes * fee_rate); },
+                             err);
+}
+
+// Vectorized reward calculation with risk-adjusted returns.
+// pnl: [batch_size], fees: [batch_size], drawdown_penalty: scalar
+tensor env_calculate_rewards(char **err, tensor pnl, tensor fees, double drawdown_penalty, tensor max_equity)
+{
+    return auto_catch_tensor([pnl, fees, drawdown_penalty, max_equity]()
+                             {
+                                 // Base reward = PnL - fees
+                                 auto reward = *pnl - *fees;
+
+                                 // Drawdown penalty (current equity vs max equity)
+                                 auto equity = *pnl; // Simplified: equity = cumsum of pnl
+                                 auto drawdown = (*max_equity - equity) / (*max_equity + 1e-8);
+                                 auto penalty = drawdown * drawdown_penalty;
+
+                                 return new torch::Tensor(reward - penalty);
+                             },
+                             err);
+}
+
+// Vectorized done check (max steps or bankruptcy).
+// steps: [batch_size], max_steps: scalar, equity: [batch_size], min_equity: scalar
+tensor env_check_done(char **err, tensor steps, int64_t max_steps, tensor equity, double min_equity)
+{
+    return auto_catch_tensor([steps, max_steps, equity, min_equity]()
+                             {
+                                 auto step_done = *steps >= max_steps;
+                                 auto bankrupt = *equity < min_equity;
+                                 return new torch::Tensor(step_done | bankrupt);
+                             },
+                             err);
+}
+
+// Vectorized state construction.
+// Combines market features, position info, and account state into single tensor.
+// market_features: [batch_size, feature_dim]
+// positions: [batch_size]
+// equity: [batch_size]
+// Returns: [batch_size, feature_dim + 2]
+tensor env_build_state(char **err, tensor market_features, tensor positions, tensor equity)
+{
+    return auto_catch_tensor([market_features, positions, equity]()
+                             {
+                                 auto pos_unsqueezed = positions->unsqueeze(-1);
+                                 auto eq_unsqueezed = equity->unsqueeze(-1);
+                                 return new torch::Tensor(torch::cat({*market_features, pos_unsqueezed, eq_unsqueezed}, -1));
+                             },
+                             err);
+}
+
+// Vectorized environment step (all-in-one).
+// This is the main CUDA kernel that processes all environments in parallel.
+// market_data: [batch_size, time_steps, feature_dim] - pre-loaded market data
+// step_indices: [batch_size] - current time step for each env
+// positions: [batch_size] - current position
+// entry_prices: [batch_size] - entry price
+// equity: [batch_size] - current equity
+// max_equity: [batch_size] - max equity seen
+// actions: [batch_size] - action to take
+// fee_rate: scalar
+// Returns struct with: next_state, rewards, dones, new_positions, new_equity, new_max_equity
+void env_vectorized_step(char **err,
+                         tensor market_data,
+                         tensor step_indices,
+                         tensor positions,
+                         tensor entry_prices,
+                         tensor equity,
+                         tensor max_equity,
+                         tensor actions,
+                         double fee_rate,
+                         double min_equity,
+                         int64_t max_steps,
+                         // Outputs (pre-allocated)
+                         tensor out_states,
+                         tensor out_rewards,
+                         tensor out_dones,
+                         tensor out_positions,
+                         tensor out_entry_prices,
+                         tensor out_equity,
+                         tensor out_max_equity,
+                         tensor out_step_indices)
+{
+    return auto_catch_void([=]()
+                           {
+        auto batch_size = positions->size(0);
+        auto feature_dim = market_data->size(2);
+        
+        // Get current market features for each env.
+        // market_data: [batch, time, features]
+        // step_indices: [batch]
+        auto indices = step_indices->unsqueeze(-1).unsqueeze(-1).expand({batch_size, 1, feature_dim});
+        auto current_features = market_data->gather(1, indices).squeeze(1);  // [batch, features]
+        auto current_prices = current_features.index({torch::indexing::Slice(), 3});  // Close price at index 3 (OHLCV)
+        
+        // Detect position changes.
+        auto old_pos = *positions;
+        auto new_pos = torch::where(
+            *actions == 0,
+            torch::zeros_like(old_pos),
+            torch::where(*actions == 1,
+                         torch::ones_like(old_pos),
+                         -torch::ones_like(old_pos)));
+        
+        auto position_changed = old_pos != new_pos;
+        
+        // Calculate PnL for closing positions.
+        auto close_pnl = torch::where(
+            position_changed & (old_pos != 0),
+            old_pos * (current_prices - *entry_prices) / (*entry_prices + 1e-8),
+            torch::zeros_like(old_pos));
+        
+        // Calculate trading fees.
+        auto fees = torch::where(
+            position_changed,
+            torch::abs(new_pos - old_pos) * current_prices * fee_rate,
+            torch::zeros_like(old_pos));
+        
+        // Update equity.
+        auto new_equity = *equity + close_pnl - fees;
+        auto new_max_eq = torch::max(*max_equity, new_equity);
+        
+        // Update entry prices.
+        auto new_entry = torch::where(
+            position_changed & (new_pos != 0),
+            current_prices,
+            *entry_prices);
+        
+        // Calculate rewards.
+        auto drawdown = (new_max_eq - new_equity) / (new_max_eq + 1e-8);
+        auto rewards = close_pnl - fees - drawdown * 0.01;  // 1% drawdown penalty
+        
+        // Advance step.
+        auto new_steps = *step_indices + 1;
+        
+        // Check done.
+        auto dones = (new_steps >= max_steps) | (new_equity < min_equity);
+        
+        // Build next state.
+        auto pos_unsqueezed = new_pos.unsqueeze(-1);
+        auto eq_unsqueezed = (new_equity / 10000.0).unsqueeze(-1);  // Normalize equity
+        auto next_state = torch::cat({current_features, pos_unsqueezed, eq_unsqueezed}, -1);
+        
+        // Copy to output tensors.
+        out_states->copy_(next_state);
+        out_rewards->copy_(rewards);
+        out_dones->copy_(dones.to(torch::kFloat32));
+        out_positions->copy_(new_pos);
+        out_entry_prices->copy_(new_entry);
+        out_equity->copy_(new_equity);
+        out_max_equity->copy_(new_max_eq);
+        out_step_indices->copy_(torch::where(dones, torch::zeros_like(new_steps), new_steps)); },
+                           err);
+}
+
+// Reset environments that are done.
+// dones: [batch_size] - which envs to reset
+// initial_equity: scalar
+void env_reset_done(char **err,
+                    tensor dones,
+                    tensor positions,
+                    tensor entry_prices,
+                    tensor equity,
+                    tensor max_equity,
+                    tensor step_indices,
+                    double initial_equity)
+{
+    return auto_catch_void([=]()
+                           {
+        auto mask = dones->to(torch::kBool);
+        positions->masked_fill_(mask, 0);
+        entry_prices->masked_fill_(mask, 0);
+        equity->masked_fill_(mask, initial_equity);
+        max_equity->masked_fill_(mask, initial_equity);
+        step_indices->masked_fill_(mask, 0); },
+                           err);
+}
