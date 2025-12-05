@@ -66,6 +66,22 @@ void tensor_copy_data(tensor t, void *data)
     memcpy(data, t->data_ptr(), t->numel() * t->element_size());
 }
 
+// tensor_set_data copies data FROM buffer INTO tensor (reverse of tensor_copy_data).
+// This enables loading model weights from saved checkpoints.
+void tensor_set_data(char **err, tensor t, void *data)
+{
+    return auto_catch_void([t, data]() {
+        // For CUDA tensors, we need to copy to CPU first, then back.
+        if (t->device().is_cuda()) {
+            torch::Tensor cpu_tensor = t->to(torch::kCPU);
+            memcpy(cpu_tensor.data_ptr(), data, cpu_tensor.numel() * cpu_tensor.element_size());
+            t->copy_(cpu_tensor.to(t->device()));
+        } else {
+            memcpy(t->data_ptr(), data, t->numel() * t->element_size());
+        }
+    }, err);
+}
+
 void tensor_set_requires_grad(char **err, tensor t, bool b)
 {
     return auto_catch_void([t, b]() { t->set_requires_grad(b); }, err);

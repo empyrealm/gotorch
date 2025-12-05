@@ -185,3 +185,42 @@ func BoolValue(t Tensor) []bool {
 	C.tensor_copy_data(C.tensor(t), unsafe.Pointer(&value[0]))
 	return fromCBool(value)
 }
+
+// SetFloat32Value copies float32 data INTO the tensor (reverse of Float32Value).
+// This enables loading model weights from saved checkpoints.
+func SetFloat32Value(t Tensor, data []float32) {
+	tp := ScalarType(t)
+	if tp != consts.KFloat {
+		panic(fmt.Errorf("tensor type is %s, expected float32", tp.String()))
+	}
+
+	if int64(len(data)) != ElemCount(t) {
+		panic(fmt.Errorf("data length %d does not match tensor element count %d", len(data), ElemCount(t)))
+	}
+
+	cData, _ := cFloats[float32, C.float](data)
+	var err *C.char
+	C.tensor_set_data(&err, C.tensor(t), unsafe.Pointer(cData))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+}
+
+// SetFloat64Value copies float64 data INTO the tensor.
+func SetFloat64Value(t Tensor, data []float64) {
+	tp := ScalarType(t)
+	if tp != consts.KDouble {
+		panic(fmt.Errorf("tensor type is %s, expected float64", tp.String()))
+	}
+
+	if int64(len(data)) != ElemCount(t) {
+		panic(fmt.Errorf("data length %d does not match tensor element count %d", len(data), ElemCount(t)))
+	}
+
+	cData, _ := cFloats[float64, C.double](data)
+	var err *C.char
+	C.tensor_set_data(&err, C.tensor(t), unsafe.Pointer(cData))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+}

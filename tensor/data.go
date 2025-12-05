@@ -189,6 +189,17 @@ func (t *Tensor) BoolValue() []bool {
 	return torch.BoolValue(t.t)
 }
 
+// SetFloat32Value copies float32 data INTO the tensor.
+// This enables loading model weights from saved checkpoints.
+func (t *Tensor) SetFloat32Value(data []float32) {
+	torch.SetFloat32Value(t.t, data)
+}
+
+// SetFloat64Value copies float64 data INTO the tensor.
+func (t *Tensor) SetFloat64Value(data []float64) {
+	torch.SetFloat64Value(t.t, data)
+}
+
 func (t *Tensor) NArrow(dim, start, length int64) *Tensor {
 	ptr := torch.NArrow(t.t, dim, start, length)
 	return New(ptr)
