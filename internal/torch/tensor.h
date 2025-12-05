@@ -144,6 +144,11 @@ extern "C"
     GOTORCH_API tensor tensor_maximum(char **err, tensor a, tensor b);
     GOTORCH_API tensor tensor_minimum(char **err, tensor a, tensor b);
 
+    // NaN handling
+    GOTORCH_API tensor tensor_nan_to_num(char **err, tensor t, double nan_val, double posinf_val, double neginf_val);
+    GOTORCH_API tensor tensor_isnan(char **err, tensor t);
+    GOTORCH_API tensor tensor_isinf(char **err, tensor t);
+
 #ifdef __cplusplus
 }
 #endif

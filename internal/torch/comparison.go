@@ -124,3 +124,37 @@ func Minimum(a, b Tensor) Tensor {
 	}
 	return Tensor(ret)
 }
+
+// ============================================================================
+// NaN Handling
+// ============================================================================
+
+// NanToNum replaces NaN, +Inf, -Inf with specified values.
+func NanToNum(t Tensor, nanVal, posinfVal, neginfVal float64) Tensor {
+	var err *C.char
+	ret := C.tensor_nan_to_num(&err, C.tensor(t), C.double(nanVal), C.double(posinfVal), C.double(neginfVal))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+	return Tensor(ret)
+}
+
+// IsNan returns a boolean tensor where True indicates NaN.
+func IsNan(t Tensor) Tensor {
+	var err *C.char
+	ret := C.tensor_isnan(&err, C.tensor(t))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+	return Tensor(ret)
+}
+
+// IsInf returns a boolean tensor where True indicates Inf.
+func IsInf(t Tensor) Tensor {
+	var err *C.char
+	ret := C.tensor_isinf(&err, C.tensor(t))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+	return Tensor(ret)
+}

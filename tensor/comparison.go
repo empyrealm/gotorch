@@ -96,3 +96,22 @@ func (t *Tensor) Maximum(other *Tensor) *Tensor {
 func (t *Tensor) Minimum(other *Tensor) *Tensor {
 	return New(torch.Minimum(t.t, other.t))
 }
+
+// ============================================================================
+// NaN Handling
+// ============================================================================
+
+// NanToNum replaces NaN, +Inf, -Inf with specified values.
+func (t *Tensor) NanToNum(nanVal, posinfVal, neginfVal float64) *Tensor {
+	return New(torch.NanToNum(t.t, nanVal, posinfVal, neginfVal))
+}
+
+// IsNan returns a boolean tensor where True indicates NaN.
+func (t *Tensor) IsNan() *Tensor {
+	return New(torch.IsNan(t.t))
+}
+
+// IsInf returns a boolean tensor where True indicates Inf.
+func (t *Tensor) IsInf() *Tensor {
+	return New(torch.IsInf(t.t))
+}

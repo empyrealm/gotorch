@@ -834,3 +834,28 @@ tensor tensor_minimum(char **err, tensor a, tensor b)
                              { return new torch::Tensor(torch::minimum(*a, *b)); },
                              err);
 }
+
+// ============================================================================
+// NaN Handling
+// ============================================================================
+
+tensor tensor_nan_to_num(char **err, tensor t, double nan_val, double posinf_val, double neginf_val)
+{
+    return auto_catch_tensor([t, nan_val, posinf_val, neginf_val]()
+                             { return new torch::Tensor(torch::nan_to_num(*t, nan_val, posinf_val, neginf_val)); },
+                             err);
+}
+
+tensor tensor_isnan(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(torch::isnan(*t)); },
+                             err);
+}
+
+tensor tensor_isinf(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(torch::isinf(*t)); },
+                             err);
+}
