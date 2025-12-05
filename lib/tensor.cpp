@@ -63,7 +63,14 @@ tensor tensor_from_data(char **err, void *data, int64_t *shape, size_t shape_len
 
 void tensor_copy_data(tensor t, void *data)
 {
-    memcpy(data, t->data_ptr(), t->numel() * t->element_size());
+    // CRITICAL: For CUDA tensors, copy to CPU first before accessing data_ptr.
+    // Directly accessing data_ptr on CUDA tensors from CPU code causes segfaults.
+    if (t->device().is_cuda()) {
+        torch::Tensor cpu_tensor = t->to(torch::kCPU);
+        memcpy(data, cpu_tensor.data_ptr(), cpu_tensor.numel() * cpu_tensor.element_size());
+    } else {
+        memcpy(data, t->data_ptr(), t->numel() * t->element_size());
+    }
 }
 
 // tensor_set_data copies data FROM buffer INTO tensor (reverse of tensor_copy_data).
