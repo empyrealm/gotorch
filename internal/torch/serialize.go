@@ -55,4 +55,3 @@ func LoadTensors(path string) []Tensor {
 
 	return tensors
 }
-

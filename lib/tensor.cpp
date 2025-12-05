@@ -223,3 +223,197 @@ void tensors_free_array(tensor *tensors, size_t count)
     }
     free(tensors);
 }
+
+// ============================================================================
+// GPU-side Sampling Operations (avoid CPU transfer)
+// ============================================================================
+
+// Multinomial sampling on GPU - critical for RL action selection.
+tensor tensor_multinomial(char **err, tensor probs, int64_t num_samples, bool replacement)
+{
+    return auto_catch_tensor([probs, num_samples, replacement]()
+                             { return new torch::Tensor(torch::multinomial(*probs, num_samples, replacement)); },
+                             err);
+}
+
+// Categorical sampling (single sample from each row).
+tensor tensor_categorical_sample(char **err, tensor logits)
+{
+    return auto_catch_tensor([logits]()
+                             {
+                                 // Softmax then sample.
+                                 auto probs = torch::softmax(*logits, -1);
+                                 return new torch::Tensor(torch::multinomial(probs, 1, false).squeeze(-1));
+                             },
+                             err);
+}
+
+// Sample from normal distribution: sample = mean + std * randn_like(mean).
+tensor tensor_normal_sample(char **err, tensor mean, tensor std)
+{
+    return auto_catch_tensor([mean, std]()
+                             {
+                                 auto noise = torch::randn_like(*mean);
+                                 return new torch::Tensor(*mean + *std * noise);
+                             },
+                             err);
+}
+
+// Argmax on GPU (for greedy action selection).
+tensor tensor_argmax(char **err, tensor t, int64_t dim, bool keepdim)
+{
+    return auto_catch_tensor([t, dim, keepdim]()
+                             { return new torch::Tensor(torch::argmax(*t, dim, keepdim)); },
+                             err);
+}
+
+// Random uniform tensor on GPU.
+tensor tensor_rand(char **err, int64_t *shape, size_t shape_len, int8_t device)
+{
+    return auto_catch_tensor([shape, shape_len, device]()
+                             {
+                                 return new torch::Tensor(torch::rand(
+                                     torch::IntArrayRef(shape, shape_len),
+                                     torch::TensorOptions().device(torch::DeviceType(device))));
+                             },
+                             err);
+}
+
+// Random normal tensor on GPU.
+tensor tensor_randn(char **err, int64_t *shape, size_t shape_len, int8_t device)
+{
+    return auto_catch_tensor([shape, shape_len, device]()
+                             {
+                                 return new torch::Tensor(torch::randn(
+                                     torch::IntArrayRef(shape, shape_len),
+                                     torch::TensorOptions().device(torch::DeviceType(device))));
+                             },
+                             err);
+}
+
+// Clamp tensor values (for action bounds).
+tensor tensor_clamp_minmax(char **err, tensor t, double min_val, double max_val)
+{
+    return auto_catch_tensor([t, min_val, max_val]()
+                             { return new torch::Tensor(torch::clamp(*t, min_val, max_val)); },
+                             err);
+}
+
+// Where operation (conditional selection on GPU).
+tensor tensor_where(char **err, tensor condition, tensor x, tensor y)
+{
+    return auto_catch_tensor([condition, x, y]()
+                             { return new torch::Tensor(torch::where(*condition, *x, *y)); },
+                             err);
+}
+
+// ============================================================================
+// Indexing Operations (for replay buffers)
+// ============================================================================
+
+// Index read: t[idx0, idx1, ...]
+tensor tensor_index(char **err, tensor t, int64_t *indices, size_t indices_len)
+{
+    return auto_catch_tensor([t, indices, indices_len]()
+                             {
+                                 std::vector<at::indexing::TensorIndex> idx;
+                                 for (size_t i = 0; i < indices_len; i++)
+                                 {
+                                     idx.push_back(indices[i]);
+                                 }
+                                 return new torch::Tensor(t->index(idx));
+                             },
+                             err);
+}
+
+// Index write: t[idx] = value
+void tensor_index_put(char **err, tensor t, int64_t *indices, size_t indices_len, tensor value)
+{
+    return auto_catch_void([t, indices, indices_len, value]()
+                           {
+                               std::vector<at::indexing::TensorIndex> idx;
+                               for (size_t i = 0; i < indices_len; i++)
+                               {
+                                   idx.push_back(indices[i]);
+                               }
+                               t->index_put_(idx, *value);
+                           },
+                           err);
+}
+
+// Index write with tensor indices: t[indices_tensor] = value
+void tensor_index_put_tensor(char **err, tensor t, tensor indices_tensor, tensor value)
+{
+    return auto_catch_void([t, indices_tensor, value]()
+                           { t->index_put_({*indices_tensor}, *value); },
+                           err);
+}
+
+// Index select: t.index_select(dim, indices)
+tensor tensor_index_select(char **err, tensor t, int64_t dim, tensor indices)
+{
+    return auto_catch_tensor([t, dim, indices]()
+                             { return new torch::Tensor(t->index_select(dim, *indices)); },
+                             err);
+}
+
+// ============================================================================
+// Global Reduction Operations (over all elements)
+// ============================================================================
+
+tensor tensor_mean_all(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->mean()); },
+                             err);
+}
+
+tensor tensor_sum_all(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->sum()); },
+                             err);
+}
+
+tensor tensor_max_all(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->max()); },
+                             err);
+}
+
+tensor tensor_min_all(char **err, tensor t)
+{
+    return auto_catch_tensor([t]()
+                             { return new torch::Tensor(t->min()); },
+                             err);
+}
+
+tensor tensor_std_all(char **err, tensor t, bool unbiased)
+{
+    return auto_catch_tensor([t, unbiased]()
+                             { return new torch::Tensor(t->std(unbiased)); },
+                             err);
+}
+
+// Power with tensor exponent
+tensor tensor_pow_tensor(char **err, tensor t, tensor exp)
+{
+    return auto_catch_tensor([t, exp]()
+                             { return new torch::Tensor(t->pow(*exp)); },
+                             err);
+}
+
+// Ones tensor
+tensor tensor_ones(char **err, int64_t *shape, size_t shape_len, int8_t dtype, int8_t device)
+{
+    return auto_catch_tensor([shape, shape_len, dtype, device]()
+                             {
+                                 return new torch::Tensor(torch::ones(
+                                     torch::IntArrayRef(shape, shape_len),
+                                     torch::TensorOptions()
+                                         .dtype(torch::ScalarType(dtype))
+                                         .device(torch::DeviceType(device))));
+                             },
+                             err);
+}

@@ -45,4 +45,3 @@ func LoadPT(path string) []*Tensor {
 
 	return tensors
 }
-

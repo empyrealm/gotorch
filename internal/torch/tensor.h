@@ -62,6 +62,28 @@ extern "C"
     GOTORCH_API void tensors_save(char **err, tensor *tensors, size_t count, const char *path);
     GOTORCH_API size_t tensors_load(char **err, const char *path, tensor **out_tensors);
     GOTORCH_API void tensors_free_array(tensor *tensors, size_t count);
+    // GPU-side sampling (avoid CPU transfer)
+    GOTORCH_API tensor tensor_multinomial(char **err, tensor probs, int64_t num_samples, bool replacement);
+    GOTORCH_API tensor tensor_categorical_sample(char **err, tensor logits);
+    GOTORCH_API tensor tensor_normal_sample(char **err, tensor mean, tensor std);
+    GOTORCH_API tensor tensor_argmax(char **err, tensor t, int64_t dim, bool keepdim);
+    GOTORCH_API tensor tensor_rand(char **err, int64_t *shape, size_t shape_len, int8_t device);
+    GOTORCH_API tensor tensor_randn(char **err, int64_t *shape, size_t shape_len, int8_t device);
+    GOTORCH_API tensor tensor_clamp_minmax(char **err, tensor t, double min_val, double max_val);
+    GOTORCH_API tensor tensor_where(char **err, tensor condition, tensor x, tensor y);
+    // Indexing operations (for replay buffers)
+    GOTORCH_API tensor tensor_index(char **err, tensor t, int64_t *indices, size_t indices_len);
+    GOTORCH_API void tensor_index_put(char **err, tensor t, int64_t *indices, size_t indices_len, tensor value);
+    GOTORCH_API void tensor_index_put_tensor(char **err, tensor t, tensor indices_tensor, tensor value);
+    GOTORCH_API tensor tensor_index_select(char **err, tensor t, int64_t dim, tensor indices);
+    // Global reductions
+    GOTORCH_API tensor tensor_mean_all(char **err, tensor t);
+    GOTORCH_API tensor tensor_sum_all(char **err, tensor t);
+    GOTORCH_API tensor tensor_max_all(char **err, tensor t);
+    GOTORCH_API tensor tensor_min_all(char **err, tensor t);
+    GOTORCH_API tensor tensor_std_all(char **err, tensor t, bool unbiased);
+    GOTORCH_API tensor tensor_pow_tensor(char **err, tensor t, tensor exp);
+    GOTORCH_API tensor tensor_ones(char **err, int64_t *shape, size_t shape_len, int8_t dtype, int8_t device);
 
 #ifdef __cplusplus
 }
