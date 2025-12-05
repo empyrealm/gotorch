@@ -60,6 +60,19 @@ func Cat(tensors []Tensor, dim int) Tensor {
 	return Tensor(ret)
 }
 
+func Stack(tensors []Tensor, dim int) Tensor {
+	cTensors := make([]C.tensor, len(tensors))
+	for i, t := range tensors {
+		cTensors[i] = C.tensor(t)
+	}
+	var err *C.char
+	ret := C.tensor_stack(&err, (*C.tensor)(unsafe.Pointer(&cTensors[0])), C.size_t(len(cTensors)), C.int64_t(dim))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+	return Tensor(ret)
+}
+
 func Outer(a, b Tensor) Tensor {
 	var err *C.char
 	ret := C.outer(&err, C.tensor(a), C.tensor(b))

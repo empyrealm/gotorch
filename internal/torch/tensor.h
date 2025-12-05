@@ -44,6 +44,7 @@ extern "C"
     GOTORCH_API void clip_grad_norm(char **err, tensor *params, size_t params_count, double max_norm, double norm_type);
     GOTORCH_API void tensor_print(tensor t);
     GOTORCH_API tensor tensor_cat(char **err, tensor *tensors, size_t tensors_len, int64_t dim);
+    GOTORCH_API tensor tensor_stack(char **err, tensor *tensors, size_t tensors_len, int64_t dim);
     GOTORCH_API tensor tensor_embedding(char **err, tensor weight, tensor indices, int64_t padding_idx);
     GOTORCH_API void svd(char **err, tensor t, tensor *u, tensor *s, tensor *v);
     GOTORCH_API tensor outer(char **err, tensor a, tensor b);
