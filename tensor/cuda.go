@@ -6,61 +6,51 @@ import (
 	"github.com/empyrealm/gotorch/internal/torch"
 )
 
-
 // EmptyCache clears the CUDA memory cache.
 // Call this periodically during long training runs to prevent OOM.
 func EmptyCache() {
 	torch.CUDAEmptyCache()
 }
 
-
 // Synchronize waits for all CUDA operations to complete.
 func Synchronize() {
 	torch.CUDASynchronize()
 }
-
 
 // MemoryAllocated returns the current CUDA memory allocated in bytes.
 func MemoryAllocated() int64 {
 	return torch.CUDAMemoryAllocated()
 }
 
-
 // MemoryReserved returns the current CUDA memory reserved in bytes.
 func MemoryReserved() int64 {
 	return torch.CUDAMemoryReserved()
 }
-
 
 // MemoryTotal returns the total CUDA memory in bytes.
 func MemoryTotal() int64 {
 	return torch.CUDAMemoryTotal()
 }
 
-
 // MemoryFree returns the free CUDA memory in bytes.
 func MemoryFree() int64 {
 	return torch.CUDAMemoryFree()
 }
-
 
 // DeviceCount returns the number of CUDA devices.
 func DeviceCount() int {
 	return torch.CUDADeviceCount()
 }
 
-
 // DeviceName returns the name of a CUDA device.
 func DeviceName(deviceID int) string {
 	return torch.CUDADeviceName(deviceID)
 }
 
-
 // ComputeCapability returns the compute capability (e.g., 89 for sm_89).
 func ComputeCapability(deviceID int) int {
 	return torch.CUDAComputeCapability(deviceID)
 }
-
 
 // CUDAInfo holds information about CUDA device and memory.
 type CUDAInfo struct {
@@ -72,7 +62,6 @@ type CUDAInfo struct {
 	AllocatedMemory   int64
 	ReservedMemory    int64
 }
-
 
 // GetCUDAInfo returns comprehensive CUDA information.
 func GetCUDAInfo() CUDAInfo {
@@ -86,7 +75,6 @@ func GetCUDAInfo() CUDAInfo {
 		ReservedMemory:    MemoryReserved(),
 	}
 }
-
 
 // String returns a formatted string of CUDA info.
 func (c CUDAInfo) String() string {
@@ -103,7 +91,6 @@ func (c CUDAInfo) String() string {
 		float64(c.ReservedMemory)/1e9,
 	)
 }
-
 
 // MemoryUsagePercent returns current memory usage as percentage.
 func MemoryUsagePercent() float64 {

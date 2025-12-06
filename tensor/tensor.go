@@ -23,6 +23,12 @@ func New(t torch.Tensor) *Tensor {
 	logBuildInfo(ts)
 	logging.Debug("new tensor: %d", ts.idx)
 	runtime.SetFinalizer(ts, freeTensor)
+
+	// Auto-track in active scope if one exists.
+	if scope := GetActiveScope(); scope != nil {
+		scope.Track(ts)
+	}
+
 	return ts
 }
 
@@ -36,6 +42,22 @@ func freeTensor(t *Tensor) error {
 	t.t = nil
 	runtime.SetFinalizer(t, nil)
 	return nil
+}
+
+// Free explicitly releases the tensor's GPU memory immediately.
+// This is critical for CUDA tensors because Go's GC doesn't see GPU memory pressure.
+// Call this on intermediate tensors in hot loops to prevent OOM.
+//
+// After calling Free(), the tensor should not be used.
+func (t *Tensor) Free() {
+	if t == nil || t.t == nil {
+		return
+	}
+	logging.Debug("explicit free tensor: %d", t.idx)
+	free(t)
+	torch.FreeTensor(t.t)
+	t.t = nil
+	runtime.SetFinalizer(t, nil) // Remove finalizer since we freed manually.
 }
 
 func (t *Tensor) Created() time.Time {

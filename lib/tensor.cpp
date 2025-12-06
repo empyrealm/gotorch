@@ -2,6 +2,11 @@
 #include "exception.hpp"
 #include <torch/torch.h>
 
+#ifdef USE_CUDA
+#include <cuda_runtime.h>
+#include <c10/cuda/CUDACachingAllocator.h>
+#endif
+
 tensor new_tensor(char **err)
 {
     return auto_catch_tensor([]() { return new torch::Tensor(); }, err);
@@ -866,9 +871,10 @@ tensor tensor_isinf(char **err, tensor t)
 void cuda_empty_cache()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
-        c10::cuda::CUDACachingAllocator::emptyCache();
-    }
+    // Synchronize first to ensure all operations complete.
+    cudaDeviceSynchronize();
+    // Request garbage collection from PyTorch allocator.
+    c10::cuda::CUDACachingAllocator::emptyCache();
 #endif
 }
 
@@ -876,9 +882,7 @@ void cuda_empty_cache()
 void cuda_synchronize()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
-        torch::cuda::synchronize();
-    }
+    cudaDeviceSynchronize();
 #endif
 }
 
@@ -886,8 +890,10 @@ void cuda_synchronize()
 int64_t cuda_memory_allocated()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
-        return c10::cuda::CUDACachingAllocator::currentMemoryAllocated(0);
+    // Use cudaMemGetInfo for actual GPU memory usage.
+    size_t free_mem, total_mem;
+    if (cudaMemGetInfo(&free_mem, &total_mem) == cudaSuccess) {
+        return static_cast<int64_t>(total_mem - free_mem);
     }
 #endif
     return 0;
@@ -897,8 +903,10 @@ int64_t cuda_memory_allocated()
 int64_t cuda_memory_reserved()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
-        return c10::cuda::CUDACachingAllocator::currentMemoryCached(0);
+    // Same as allocated - we use the actual GPU memory.
+    size_t free_mem, total_mem;
+    if (cudaMemGetInfo(&free_mem, &total_mem) == cudaSuccess) {
+        return static_cast<int64_t>(total_mem - free_mem);
     }
 #endif
     return 0;
@@ -908,7 +916,10 @@ int64_t cuda_memory_reserved()
 int64_t cuda_memory_total()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
+    // Force CUDA initialization if not already done.
+    int deviceCount = 0;
+    cudaGetDeviceCount(&deviceCount);
+    if (deviceCount > 0) {
         cudaDeviceProp prop;
         cudaGetDeviceProperties(&prop, 0);
         return prop.totalGlobalMem;
@@ -921,7 +932,9 @@ int64_t cuda_memory_total()
 int64_t cuda_memory_free()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
+    int deviceCount = 0;
+    cudaGetDeviceCount(&deviceCount);
+    if (deviceCount > 0) {
         size_t free_mem, total_mem;
         cudaMemGetInfo(&free_mem, &total_mem);
         return static_cast<int64_t>(free_mem);
@@ -934,9 +947,9 @@ int64_t cuda_memory_free()
 int cuda_device_count()
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available()) {
-        return torch::cuda::device_count();
-    }
+    int deviceCount = 0;
+    cudaGetDeviceCount(&deviceCount);
+    return deviceCount;
 #endif
     return 0;
 }
@@ -945,7 +958,9 @@ int cuda_device_count()
 const char* cuda_device_name(int device_id)
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available() && device_id < torch::cuda::device_count()) {
+    int deviceCount = 0;
+    cudaGetDeviceCount(&deviceCount);
+    if (deviceCount > 0 && device_id < deviceCount) {
         static char name[256];
         cudaDeviceProp prop;
         cudaGetDeviceProperties(&prop, device_id);
@@ -961,7 +976,9 @@ const char* cuda_device_name(int device_id)
 int cuda_compute_capability(int device_id)
 {
 #ifdef USE_CUDA
-    if (torch::cuda::is_available() && device_id < torch::cuda::device_count()) {
+    int deviceCount = 0;
+    cudaGetDeviceCount(&deviceCount);
+    if (deviceCount > 0 && device_id < deviceCount) {
         cudaDeviceProp prop;
         cudaGetDeviceProperties(&prop, device_id);
         return prop.major * 10 + prop.minor;
