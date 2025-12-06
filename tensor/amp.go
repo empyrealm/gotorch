@@ -12,8 +12,17 @@ import (
 
 // Half converts tensor to fp16 (half precision).
 // 2x memory savings, faster on Tensor Cores (RTX GPUs).
+// Returns a NEW tensor - original is unchanged.
 func (t *Tensor) Half() *Tensor {
 	return New(torch.Half(t.t))
+}
+
+// ToHalf converts tensor to fp16 IN-PLACE.
+// Use this for model parameters to avoid creating copies.
+func (t *Tensor) ToHalf() {
+	newT := torch.Half(t.t)
+	torch.FreeTensor(t.t)
+	t.t = newT
 }
 
 // BFloat16 converts tensor to bf16.
