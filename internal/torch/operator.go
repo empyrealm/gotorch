@@ -326,3 +326,12 @@ func MaxTensor(a, b Tensor) Tensor {
 	}
 	return Tensor(ptr)
 }
+
+func NanToNum(t Tensor, nan, posinf, neginf float64) Tensor {
+	var err *C.char
+	ptr := C.tensor_nan_to_num(&err, C.tensor(t), C.double(nan), C.double(posinf), C.double(neginf))
+	if err != nil {
+		panic(C.GoString(err))
+	}
+	return Tensor(ptr)
+}

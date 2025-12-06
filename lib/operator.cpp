@@ -206,3 +206,10 @@ tensor tensor_max_tensor(char **err, tensor a, tensor b)
 {
     return auto_catch_tensor([a, b]() { return new torch::Tensor(torch::max(*a, *b)); }, err);
 }
+
+tensor tensor_nan_to_num(char **err, tensor a, double nan_val, double posinf_val, double neginf_val)
+{
+    return auto_catch_tensor([a, nan_val, posinf_val, neginf_val]() {
+        return new torch::Tensor(torch::nan_to_num(*a, nan_val, posinf_val, neginf_val));
+    }, err);
+}

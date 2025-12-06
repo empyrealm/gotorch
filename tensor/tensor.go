@@ -103,3 +103,28 @@ func (t *Tensor) Clone() *Tensor {
 	ptr := torch.Clone(t.t)
 	return New(ptr)
 }
+
+// Free explicitly releases the tensor's memory.
+// This is useful for immediate cleanup of CUDA tensors without waiting for GC.
+// Safe to call multiple times - subsequent calls are no-ops.
+func (t *Tensor) Free() {
+	if t == nil || t.t == nil {
+		return
+	}
+
+	logging.Debug("explicit free tensor: %d", t.idx)
+	free(t)
+	torch.FreeTensor(t.t)
+	t.t = nil
+	runtime.SetFinalizer(t, nil)
+}
+
+// NanToNum replaces NaN, positive infinity, and negative infinity with specified values.
+// If a value is not specified (0), uses reasonable defaults:
+// - NaN -> 0.0
+// - +Inf -> very large positive number
+// - -Inf -> very large negative number
+func (t *Tensor) NanToNum(nan, posinf, neginf float64) *Tensor {
+	ptr := torch.NanToNum(t.t, nan, posinf, neginf)
+	return New(ptr)
+}

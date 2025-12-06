@@ -126,6 +126,14 @@ extern "C"
                                     tensor max_equity,
                                     tensor step_indices,
                                     double initial_equity);
+    // CUDA utilities
+    GOTORCH_API bool is_cuda_available();
+    GOTORCH_API void cuda_synchronize();
+    GOTORCH_API void cuda_empty_cache();
+    GOTORCH_API uint64_t cuda_memory_allocated();
+    GOTORCH_API uint64_t cuda_memory_total();
+    GOTORCH_API const char* cuda_device_name();
+    GOTORCH_API const char* cuda_sm_version();
 
 #ifdef __cplusplus
 }

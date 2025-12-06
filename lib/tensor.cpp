@@ -687,12 +687,68 @@ void env_reset_done(char **err,
                     double initial_equity)
 {
     return auto_catch_void([=]()
-                           {
+                          {
         auto mask = dones->to(torch::kBool);
         positions->masked_fill_(mask, 0);
         entry_prices->masked_fill_(mask, 0);
         equity->masked_fill_(mask, initial_equity);
         max_equity->masked_fill_(mask, initial_equity);
         step_indices->masked_fill_(mask, 0); },
-                           err);
+                          err);
+}
+
+
+// ============================================================================
+// CUDA Utility Functions
+// ============================================================================
+
+bool is_cuda_available()
+{
+    return torch::cuda::is_available();
+}
+
+void cuda_synchronize()
+{
+    if (torch::cuda::is_available()) {
+        torch::cuda::synchronize();
+    }
+}
+
+void cuda_empty_cache()
+{
+    // Note: PyTorch C++ API doesn't expose empty_cache directly.
+    // This is a no-op placeholder. Memory management happens via tensor destruction.
+}
+
+uint64_t cuda_memory_allocated()
+{
+    // Note: PyTorch C++ API doesn't expose memory_allocated directly.
+    // Return 0 as placeholder.
+    return 0;
+}
+
+uint64_t cuda_memory_total()
+{
+    if (!torch::cuda::is_available()) {
+        return 0;
+    }
+    // Note: Getting total memory requires CUDA API directly.
+    // Return 0 as placeholder - actual value would need cudaMemGetInfo.
+    return 0;
+}
+
+const char* cuda_device_name()
+{
+    static char name[256] = "CUDA Device";
+    if (torch::cuda::is_available()) {
+        // Would need cudaGetDeviceProperties for actual name.
+        return name;
+    }
+    return "No CUDA";
+}
+
+const char* cuda_sm_version()
+{
+    static char version[32] = "Unknown";
+    return version;
 }

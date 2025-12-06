@@ -45,6 +45,7 @@ extern "C"
     GOTORCH_API tensor tensor_clamp(char **err, tensor a, double min, double max);
     GOTORCH_API tensor tensor_min_tensor(char **err, tensor a, tensor b);
     GOTORCH_API tensor tensor_max_tensor(char **err, tensor a, tensor b);
+    GOTORCH_API tensor tensor_nan_to_num(char **err, tensor a, double nan_val, double posinf_val, double neginf_val);
     // conv
     GOTORCH_API tensor tensor_conv1d(char **err, tensor input, tensor weight, tensor bias, int64_t stride,
                                      int64_t padding, int64_t dilation, int64_t groups);
