@@ -2,6 +2,8 @@
 #include "exception.hpp"
 #include <torch/torch.h>
 #include <ATen/autocast_mode.h>
+#include <c10/cuda/CUDACachingAllocator.h>
+#include <cuda_runtime.h>
 
 tensor new_tensor(char **err)
 {
@@ -768,15 +770,18 @@ void cuda_synchronize()
 
 void cuda_empty_cache()
 {
-    // Note: PyTorch C++ API doesn't expose empty_cache directly.
-    // This is a no-op placeholder. Memory management happens via tensor destruction.
+    if (torch::cuda::is_available()) {
+        c10::cuda::CUDACachingAllocator::emptyCache();
+    }
 }
 
 uint64_t cuda_memory_allocated()
 {
-    // Note: PyTorch C++ API doesn't expose memory_allocated directly.
-    // Return 0 as placeholder.
-    return 0;
+    if (!torch::cuda::is_available()) {
+        return 0;
+    }
+    auto stats = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
+    return static_cast<uint64_t>(stats.allocated_bytes[0].current);
 }
 
 uint64_t cuda_memory_total()
@@ -784,24 +789,30 @@ uint64_t cuda_memory_total()
     if (!torch::cuda::is_available()) {
         return 0;
     }
-    // Note: Getting total memory requires CUDA API directly.
-    // Return 0 as placeholder - actual value would need cudaMemGetInfo.
-    return 0;
+    size_t free, total;
+    cudaMemGetInfo(&free, &total);
+    return static_cast<uint64_t>(total);
 }
 
 const char* cuda_device_name()
 {
     static char name[256] = "CUDA Device";
     if (torch::cuda::is_available()) {
-        // Would need cudaGetDeviceProperties for actual name.
-        return name;
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, 0);
+        snprintf(name, sizeof(name), "%s", prop.name);
     }
-    return "No CUDA";
+    return name;
 }
 
 const char* cuda_sm_version()
 {
     static char version[32] = "Unknown";
+    if (torch::cuda::is_available()) {
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, 0);
+        snprintf(version, sizeof(version), "%d.%d", prop.major, prop.minor);
+    }
     return version;
 }
 
