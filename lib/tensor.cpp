@@ -859,3 +859,47 @@ tensor tensor_isinf(char **err, tensor t)
                              { return new torch::Tensor(torch::isinf(*t)); },
                              err);
 }
+
+
+// CUDA memory management functions.
+
+void cuda_empty_cache()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        c10::cuda::CUDACachingAllocator::emptyCache();
+    }
+#endif
+}
+
+
+void cuda_synchronize()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        torch::cuda::synchronize();
+    }
+#endif
+}
+
+
+int64_t cuda_memory_allocated()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        return c10::cuda::CUDACachingAllocator::currentMemoryAllocated(0);
+    }
+#endif
+    return 0;
+}
+
+
+int64_t cuda_memory_reserved()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        return c10::cuda::CUDACachingAllocator::currentMemoryCached(0);
+    }
+#endif
+    return 0;
+}

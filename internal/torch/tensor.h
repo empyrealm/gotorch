@@ -149,6 +149,12 @@ extern "C"
     GOTORCH_API tensor tensor_isnan(char **err, tensor t);
     GOTORCH_API tensor tensor_isinf(char **err, tensor t);
 
+    // CUDA memory management
+    void cuda_empty_cache();
+    void cuda_synchronize();
+    int64_t cuda_memory_allocated();
+    int64_t cuda_memory_reserved();
+
 #ifdef __cplusplus
 }
 #endif
