@@ -777,30 +777,45 @@ void cuda_empty_cache()
 
 uint64_t cuda_memory_allocated()
 {
-    if (!torch::cuda::is_available()) {
+    if (!torch::cuda::is_available() || torch::cuda::device_count() == 0) {
         return 0;
     }
-    auto stats = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
-    return static_cast<uint64_t>(stats.allocated_bytes[0].current);
+    try {
+        // Ensure CUDA context is initialized
+        c10::cuda::current_device();
+        auto stats = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
+        return static_cast<uint64_t>(stats.allocated_bytes[0].current);
+    } catch (...) {
+        return 0;
+    }
 }
 
 uint64_t cuda_memory_total()
 {
-    if (!torch::cuda::is_available()) {
+    if (!torch::cuda::is_available() || torch::cuda::device_count() == 0) {
         return 0;
     }
-    size_t free, total;
-    cudaMemGetInfo(&free, &total);
-    return static_cast<uint64_t>(total);
+    try {
+        size_t free, total;
+        if (cudaMemGetInfo(&free, &total) == cudaSuccess) {
+            return static_cast<uint64_t>(total);
+        }
+    } catch (...) {
+    }
+    return 0;
 }
 
 const char* cuda_device_name()
 {
     static char name[256] = "CUDA Device";
-    if (torch::cuda::is_available()) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, 0);
-        snprintf(name, sizeof(name), "%s", prop.name);
+    if (torch::cuda::is_available() && torch::cuda::device_count() > 0) {
+        try {
+            cudaDeviceProp prop;
+            if (cudaGetDeviceProperties(&prop, 0) == cudaSuccess) {
+                snprintf(name, sizeof(name), "%s", prop.name);
+            }
+        } catch (...) {
+        }
     }
     return name;
 }
@@ -808,10 +823,14 @@ const char* cuda_device_name()
 const char* cuda_sm_version()
 {
     static char version[32] = "Unknown";
-    if (torch::cuda::is_available()) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, 0);
-        snprintf(version, sizeof(version), "%d.%d", prop.major, prop.minor);
+    if (torch::cuda::is_available() && torch::cuda::device_count() > 0) {
+        try {
+            cudaDeviceProp prop;
+            if (cudaGetDeviceProperties(&prop, 0) == cudaSuccess) {
+                snprintf(version, sizeof(version), "%d.%d", prop.major, prop.minor);
+            }
+        } catch (...) {
+        }
     }
     return version;
 }
