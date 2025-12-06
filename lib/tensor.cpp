@@ -878,3 +878,48 @@ void autocast_decrement_nesting()
     // Nesting is handled internally by LibTorch now.
     // This is a no-op for compatibility.
 }
+
+
+// ============================================================================
+// Model Export (JIT format for fast inference)
+// ============================================================================
+
+// Save model weights to TorchScript format for fast loading.
+// This creates a .pt file that can be loaded much faster than individual tensors.
+void model_save_jit(char **err, tensor *tensors, size_t count, const char *path)
+{
+    return auto_catch_void([=]()
+    {
+        // Create a list of tensors to save.
+        std::vector<torch::Tensor> tensor_list;
+        for (size_t i = 0; i < count; i++) {
+            tensor_list.push_back(*tensors[i]);
+        }
+        
+        // Save as a simple list (IValue).
+        torch::save(tensor_list, path);
+    }, err);
+}
+
+// Export model to ONNX format.
+// Note: Full ONNX export requires tracing which needs a forward function.
+// For now, this returns -1 (not implemented) and users should use Python
+// for ONNX export via: torch.onnx.export(model, dummy_input, path)
+//
+// Returns: 0 on success, -1 if not implemented.
+int model_export_onnx(char **err, const char *jit_path, const char *onnx_path,
+                      int64_t batch_size, int64_t input_dim)
+{
+    // ONNX export requires torch.jit.trace or torch.jit.script,
+    // which needs the actual model class definition.
+    // Since we only have weights, we can't export to ONNX directly.
+    //
+    // Recommended approach:
+    // 1. Load weights in Python PyTorch
+    // 2. Recreate the model architecture
+    // 3. Use torch.onnx.export()
+    //
+    // See docs/ONNX_EXPORT.md for the Python script.
+    *err = strdup("ONNX export requires Python. Use scripts/export_onnx.py instead.");
+    return -1;
+}

@@ -144,6 +144,11 @@ extern "C"
     GOTORCH_API void autocast_increment_nesting();
     GOTORCH_API void autocast_decrement_nesting();
 
+    // Model Export (JIT + ONNX)
+    GOTORCH_API void model_save_jit(char **err, tensor *tensors, size_t count, const char *path);
+    GOTORCH_API int model_export_onnx(char **err, const char *jit_path, const char *onnx_path,
+                                      int64_t batch_size, int64_t input_dim);
+
 #ifdef __cplusplus
 }
 #endif
