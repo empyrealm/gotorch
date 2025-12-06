@@ -12,18 +12,18 @@ import (
 // Half converts tensor to fp16 (half precision).
 // 2x memory savings, faster on Tensor Cores (RTX GPUs).
 func (t *Tensor) Half() *Tensor {
-	return &Tensor{t: torch.Half(t.t)}
+	return New(torch.Half(t.t))
 }
 
 // BFloat16 converts tensor to bf16.
 // Better numerical stability than fp16, same memory savings.
 func (t *Tensor) BFloat16() *Tensor {
-	return &Tensor{t: torch.BFloat16(t.t)}
+	return New(torch.BFloat16(t.t))
 }
 
 // Float32 converts tensor back to fp32 (full precision).
 func (t *Tensor) Float32() *Tensor {
-	return &Tensor{t: torch.Float32(t.t)}
+	return New(torch.Float32(t.t))
 }
 
 // IsHalf returns true if tensor is fp16.
@@ -136,5 +136,5 @@ func DefaultAMPConfig() AMPConfig {
 
 // MulScalar multiplies tensor by scalar (helper for scaling).
 func (t *Tensor) MulScalar(s float64) *Tensor {
-	return &Tensor{t: torch.Scale(t.t, s)}
+	return New(torch.Scale(t.t, s))
 }
