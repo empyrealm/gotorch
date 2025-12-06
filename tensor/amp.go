@@ -210,6 +210,13 @@ func AutocastIsEnabled() bool {
 	return torch.AutocastIsEnabled()
 }
 
+// ForceDisableAutocast forcefully disables autocast.
+// Use this as a safety fallback if autocast leaked from a crashed context.
+func ForceDisableAutocast() {
+	torch.AutocastSetEnabled(false)
+	torch.AutocastClearCache()
+}
+
 // ClearAutocastCache clears the weight cache used by autocast.
 // Call this periodically to free memory if needed.
 func ClearAutocastCache() {
