@@ -609,11 +609,16 @@ void env_vectorized_step(char **err,
                            {
         auto batch_size = positions->size(0);
         auto feature_dim = market_data->size(2);
+        auto time_dim = market_data->size(1);
+        
+        // Clamp step indices to valid range to prevent out-of-bounds access.
+        // This is critical for preventing SIGBUS crashes.
+        auto safe_indices = step_indices->clamp(0, time_dim - 1);
         
         // Get current market features for each env.
         // market_data: [batch, time, features]
-        // step_indices: [batch]
-        auto indices = step_indices->unsqueeze(-1).unsqueeze(-1).expand({batch_size, 1, feature_dim});
+        // safe_indices: [batch]
+        auto indices = safe_indices.unsqueeze(-1).unsqueeze(-1).expand({batch_size, 1, feature_dim});
         auto current_features = market_data->gather(1, indices).squeeze(1);  // [batch, features]
         auto current_prices = current_features.index({torch::indexing::Slice(), 3});  // Close price at index 3 (OHLCV)
         
@@ -716,6 +721,10 @@ void env_vectorized_step(char **err,
         auto eq_unsqueezed = (new_equity / 10000.0).unsqueeze(-1);  // Normalize equity
         auto next_state = torch::cat({current_features, pos_unsqueezed, eq_unsqueezed}, -1);
         
+        // Reset step indices when done, clamping to valid range.
+        auto reset_steps = torch::where(dones, torch::zeros_like(new_steps), new_steps);
+        auto clamped_steps = reset_steps.clamp(0, time_dim - 1);  // Safety clamp
+        
         // Copy to output tensors.
         out_states->copy_(next_state);
         out_rewards->copy_(rewards);
@@ -724,7 +733,7 @@ void env_vectorized_step(char **err,
         out_entry_prices->copy_(new_entry);
         out_equity->copy_(new_equity);
         out_max_equity->copy_(new_max_eq);
-        out_step_indices->copy_(torch::where(dones, torch::zeros_like(new_steps), new_steps)); },
+        out_step_indices->copy_(clamped_steps); },
                            err);
 }
 
