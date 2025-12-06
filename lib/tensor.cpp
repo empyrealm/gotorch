@@ -647,9 +647,60 @@ void env_vectorized_step(char **err,
             current_prices,
             *entry_prices);
         
-        // Calculate rewards.
+        // ============================================================
+        // IMPROVED REWARD SHAPING
+        // ============================================================
+        
+        // 1. Base reward: Realized PnL from closing positions
+        auto base_reward = close_pnl;
+        
+        // 2. Trading cost penalty: Discourage excessive trading
+        auto trading_penalty = fees * 2.0;  // 2x fee penalty
+        
+        // 3. Unrealized PnL change: Reward for holding profitable positions
+        auto unrealized_pnl = torch::where(
+            new_pos != 0,
+            new_pos * (current_prices - new_entry) / (new_entry + 1e-8),
+            torch::zeros_like(new_pos));
+        auto holding_reward = unrealized_pnl * 0.1;  // 10% of unrealized PnL
+        
+        // 4. Position change penalty: Extra cost for changing positions
+        auto position_change_penalty = torch::where(
+            position_changed,
+            torch::ones_like(old_pos) * 0.0005,  // 0.05% penalty per trade
+            torch::zeros_like(old_pos));
+        
+        // 5. Drawdown penalty: Punish equity drawdowns
         auto drawdown = (new_max_eq - new_equity) / (new_max_eq + 1e-8);
-        auto rewards = close_pnl - fees - drawdown * 0.01;  // 1% drawdown penalty
+        auto drawdown_penalty = drawdown * 0.02;  // 2% drawdown penalty
+        
+        // 6. Profit bonus: Extra reward for profitable closes
+        auto profit_bonus = torch::where(
+            close_pnl > 0,
+            close_pnl * 0.5,  // 50% bonus for profitable trades
+            torch::zeros_like(close_pnl));
+        
+        // 7. Loss penalty: Extra penalty for losing trades
+        auto loss_penalty = torch::where(
+            close_pnl < 0,
+            torch::abs(close_pnl) * 0.3,  // 30% extra penalty for losses
+            torch::zeros_like(close_pnl));
+        
+        // 8. Flat position bonus: Small reward for being flat (reduces overtrading)
+        auto flat_bonus = torch::where(
+            new_pos == 0,
+            torch::ones_like(new_pos) * 0.00001,  // Tiny bonus for flat
+            torch::zeros_like(new_pos));
+        
+        // Combine all reward components
+        auto rewards = base_reward 
+                     + holding_reward 
+                     + profit_bonus 
+                     + flat_bonus
+                     - trading_penalty 
+                     - position_change_penalty 
+                     - drawdown_penalty 
+                     - loss_penalty;
         
         // Advance step.
         auto new_steps = *step_indices + 1;
