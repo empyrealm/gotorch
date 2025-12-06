@@ -82,61 +82,118 @@ func (b *RolloutBuffer) Add(state, action, reward, done, value, logProb *tensor.
 	b.ptr++
 }
 
-// ComputeReturnsAndAdvantages computes GAE on GPU.
+// ComputeReturnsAndAdvantages computes GAE on GPU with proper memory management.
+//
+// Uses TensorScope to track and free intermediate tensors, preventing memory
+// leaks during the backward GAE pass.
 func (b *RolloutBuffer) ComputeReturnsAndAdvantages(lastValue *tensor.Tensor, gamma, gaeLambda float64) {
-	// Create scalar tensors on GPU.
+
+	// Create scalar tensors on GPU (reused across all iterations).
 	gammaT := tensor.FromFloat32([]float32{float32(gamma)}, tensor.WithShapes(1), tensor.WithDevice(b.device))
 	lambdaT := tensor.FromFloat32([]float32{float32(gaeLambda)}, tensor.WithShapes(1), tensor.WithDevice(b.device))
 	oneT := tensor.FromFloat32([]float32{1.0}, tensor.WithShapes(1), tensor.WithDevice(b.device))
+	gammaLambdaT := gammaT.Mul(lambdaT) // Pre-compute gamma * lambda.
 
 	// Initialize last advantage.
 	lastAdv := tensor.Zeros(consts.KFloat, tensor.WithShapes(b.numEnvs), tensor.WithDevice(b.device))
 	nextValue := lastValue
 
 	// Backward pass for GAE (on GPU).
+	// Each iteration creates intermediate tensors that must be freed.
 	for t := b.numSteps - 1; t >= 0; t-- {
-		// Get current step data.
+
+		// Scope for this iteration - frees intermediates automatically.
+		scope := tensor.NewScope()
+
+		// Get current step data (views into pre-allocated buffer, but Index creates new tensor).
 		reward := b.rewards.Index([]int64{t})
 		done := b.dones.Index([]int64{t})
 		value := b.values.Index([]int64{t})
 
 		// delta = reward + gamma * next_value * (1 - done) - value
 		notDone := oneT.Sub(done)
-		delta := reward.Add(gammaT.Mul(nextValue).Mul(notDone)).Sub(value)
+		gammaNV := gammaT.Mul(nextValue)
+		gammaNVND := gammaNV.Mul(notDone)
+		rewardPlusDiscount := reward.Add(gammaNVND)
+		delta := rewardPlusDiscount.Sub(value)
 
 		// advantage = delta + gamma * lambda * (1 - done) * last_advantage
-		lastAdv = delta.Add(gammaT.Mul(lambdaT).Mul(notDone).Mul(lastAdv))
+		glND := gammaLambdaT.Mul(notDone)
+		glNDLA := glND.Mul(lastAdv)
+		newAdv := delta.Add(glNDLA)
 
-		// Store.
-		b.advantages.IndexPut([]int64{t}, lastAdv)
-		b.returns.IndexPut([]int64{t}, lastAdv.Add(value))
+		// Compute return for storage.
+		newReturn := newAdv.Add(value)
 
+		// Store in pre-allocated buffers (in-place, no new allocation).
+		b.advantages.IndexPut([]int64{t}, newAdv)
+		b.returns.IndexPut([]int64{t}, newReturn)
+
+		// Keep tensors needed for next iteration.
+		scope.Keep(newAdv)
+		scope.Keep(value)
+
+		// Close scope - frees all intermediates except kept ones.
+		scope.Close()
+
+		// Update for next iteration.
+		lastAdv = newAdv
 		nextValue = value
 	}
 
-	// Normalize advantages on GPU.
+	// Free the scalar tensors used in the loop.
+	gammaT.Free()
+	lambdaT.Free()
+	oneT.Free()
+	gammaLambdaT.Free()
+	lastAdv.Free()
+
+	// Normalize advantages on GPU (with scoped intermediates).
+	normScope := tensor.NewScope()
+
 	advMean := b.advantages.MeanAll()
 	advStd := b.advantages.StdAll(false)
 	eps := tensor.FromFloat32([]float32{1e-8}, tensor.WithShapes(1), tensor.WithDevice(b.device))
-	b.advantages = b.advantages.Sub(advMean).Div(advStd.Add(eps))
+	stdPlusEps := advStd.Add(eps)
+	advCentered := b.advantages.Sub(advMean)
+	normalizedAdv := advCentered.Div(stdPlusEps)
+
+	// Keep the normalized result.
+	normScope.Keep(normalizedAdv)
+	normScope.Close()
+
+	// Replace advantages with normalized version.
+	b.advantages.Free()
+	b.advantages = normalizedAdv
 }
 
 // GetBatch returns a minibatch from the flattened buffer.
-// All tensors stay on GPU.
+// All tensors stay on GPU. Caller is responsible for freeing returned tensors.
+//
+// Note: The reshape operations create views (no copy), but IndexSelect creates
+// new tensors. The returned tensors should be freed after use or tracked in a scope.
 func (b *RolloutBuffer) GetBatch(indices *tensor.Tensor) (states, actions, oldLogProbs, advantages, returns *tensor.Tensor) {
-	// Flatten buffer.
+
+	// Flatten buffer (these are views, not copies).
 	flatStates := b.states.ReshapeSlice([]int64{-1, b.stateDim})
 	flatActions := b.actions.ReshapeSlice([]int64{-1, b.actionDim})
 	flatLogProbs := b.logProbs.ReshapeSlice([]int64{-1})
 	flatAdvantages := b.advantages.ReshapeSlice([]int64{-1})
 	flatReturns := b.returns.ReshapeSlice([]int64{-1})
 
-	// Index select (on GPU).
+	// Index select (on GPU) - creates new tensors.
 	states = flatStates.IndexSelect(0, indices)
 	actions = flatActions.IndexSelect(0, indices)
 	oldLogProbs = flatLogProbs.IndexSelect(0, indices)
 	advantages = flatAdvantages.IndexSelect(0, indices)
 	returns = flatReturns.IndexSelect(0, indices)
+
+	// Free the intermediate reshape views.
+	flatStates.Free()
+	flatActions.Free()
+	flatLogProbs.Free()
+	flatAdvantages.Free()
+	flatReturns.Free()
 
 	return
 }

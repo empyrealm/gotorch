@@ -163,7 +163,11 @@ func (env *VecEnv) Step(actions *tensor.Tensor) (states, rewards, dones *tensor.
 
 // getCurrentState builds the current observation state.
 // Returns [num_envs, feature_dim + 2] tensor (market features + position + equity)
+//
+// Note: Creates intermediate tensors for narrow/squeeze. These are tracked by
+// scope if active, otherwise freed explicitly.
 func (env *VecEnv) getCurrentState() *tensor.Tensor {
+
 	if env.marketData == nil {
 		// No market data loaded, return zeros.
 		return env.outStates
@@ -175,7 +179,8 @@ func (env *VecEnv) getCurrentState() *tensor.Tensor {
 
 	// Use narrow to select first timestep: marketData[:, 0:1, :] then squeeze.
 	// Narrow: (dim=1, start=0, length=1)
-	currentFeatures := env.marketData.Narrow(1, 0, 1).Squeeze(1)
+	narrowed := env.marketData.Narrow(1, 0, 1)
+	currentFeatures := narrowed.Squeeze(1)
 	// Result shape: [num_envs, feature_dim]
 
 	// Build state using env_build_state kernel.
@@ -184,6 +189,10 @@ func (env *VecEnv) getCurrentState() *tensor.Tensor {
 		env.positions.Tensor(),
 		env.equity.Tensor(),
 	))
+
+	// Free intermediate tensors.
+	narrowed.Free()
+	currentFeatures.Free()
 
 	return state
 }

@@ -22,7 +22,7 @@ import (
 //
 //	Tensor of sampled indices (int64).
 func (t *Tensor) Multinomial(numSamples int64, replacement bool) *Tensor {
-	return &Tensor{t: torch.Multinomial(t.t, numSamples, replacement)}
+	return New(torch.Multinomial(t.t, numSamples, replacement))
 }
 
 // CategoricalSample samples from categorical distribution.
@@ -32,31 +32,31 @@ func (t *Tensor) Multinomial(numSamples int64, replacement bool) *Tensor {
 //
 //	Tensor of sampled indices (int64), one per row.
 func (t *Tensor) CategoricalSample() *Tensor {
-	return &Tensor{t: torch.CategoricalSample(t.t)}
+	return New(torch.CategoricalSample(t.t))
 }
 
 // NormalSample samples from normal distribution with given mean and std.
 // Both inputs and output stay on GPU.
 func NormalSample(mean, std *Tensor) *Tensor {
-	return &Tensor{t: torch.NormalSample(mean.t, std.t)}
+	return New(torch.NormalSample(mean.t, std.t))
 }
 
 // Argmax returns indices of maximum values along dimension.
 // Stays on GPU - useful for greedy action selection.
 func (t *Tensor) Argmax(dim int64, keepdim bool) *Tensor {
-	return &Tensor{t: torch.Argmax(t.t, dim, keepdim)}
+	return New(torch.Argmax(t.t, dim, keepdim))
 }
 
 // Rand creates a tensor with uniform random values in [0, 1).
 // Created directly on specified device (GPU).
 func Rand(shape []int64, device consts.DeviceType) *Tensor {
-	return &Tensor{t: torch.Rand(shape, device)}
+	return New(torch.Rand(shape, device))
 }
 
 // Randn creates a tensor with standard normal random values.
 // Created directly on specified device (GPU).
 func Randn(shape []int64, device consts.DeviceType) *Tensor {
-	return &Tensor{t: torch.Randn(shape, device)}
+	return New(torch.Randn(shape, device))
 }
 
 // RandLike creates a tensor with uniform random values matching t's shape/device.
@@ -76,11 +76,11 @@ func RandnLike(t *Tensor) *Tensor {
 // ClampMinMax clamps tensor values to [min, max] range.
 // Useful for bounding actions in continuous action spaces.
 func (t *Tensor) ClampMinMax(minVal, maxVal float64) *Tensor {
-	return &Tensor{t: torch.ClampMinMax(t.t, minVal, maxVal)}
+	return New(torch.ClampMinMax(t.t, minVal, maxVal))
 }
 
 // Where selects elements: condition ? x : y
 // All operations on GPU.
 func Where(condition, x, y *Tensor) *Tensor {
-	return &Tensor{t: torch.Where(condition.t, x.t, y.t)}
+	return New(torch.Where(condition.t, x.t, y.t))
 }
