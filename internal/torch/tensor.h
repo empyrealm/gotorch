@@ -150,10 +150,10 @@ extern "C"
     GOTORCH_API tensor tensor_isinf(char **err, tensor t);
 
     // CUDA memory management
-    void cuda_empty_cache();
-    void cuda_synchronize();
-    int64_t cuda_memory_allocated();
-    int64_t cuda_memory_reserved();
+    GOTORCH_API void cuda_empty_cache();
+    GOTORCH_API void cuda_synchronize();
+    GOTORCH_API int64_t cuda_memory_allocated();
+    GOTORCH_API int64_t cuda_memory_reserved();
 
 #ifdef __cplusplus
 }
