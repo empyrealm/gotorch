@@ -903,3 +903,69 @@ int64_t cuda_memory_reserved()
 #endif
     return 0;
 }
+
+
+int64_t cuda_memory_total()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, 0);
+        return prop.totalGlobalMem;
+    }
+#endif
+    return 0;
+}
+
+
+int64_t cuda_memory_free()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        size_t free_mem, total_mem;
+        cudaMemGetInfo(&free_mem, &total_mem);
+        return static_cast<int64_t>(free_mem);
+    }
+#endif
+    return 0;
+}
+
+
+int cuda_device_count()
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available()) {
+        return torch::cuda::device_count();
+    }
+#endif
+    return 0;
+}
+
+
+const char* cuda_device_name(int device_id)
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available() && device_id < torch::cuda::device_count()) {
+        static char name[256];
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, device_id);
+        strncpy(name, prop.name, 255);
+        name[255] = '\0';
+        return name;
+    }
+#endif
+    return "No CUDA device";
+}
+
+
+int cuda_compute_capability(int device_id)
+{
+#ifdef USE_CUDA
+    if (torch::cuda::is_available() && device_id < torch::cuda::device_count()) {
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, device_id);
+        return prop.major * 10 + prop.minor;
+    }
+#endif
+    return 0;
+}

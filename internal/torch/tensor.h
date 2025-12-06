@@ -154,6 +154,13 @@ extern "C"
     GOTORCH_API void cuda_synchronize();
     GOTORCH_API int64_t cuda_memory_allocated();
     GOTORCH_API int64_t cuda_memory_reserved();
+    GOTORCH_API int64_t cuda_memory_total();
+    GOTORCH_API int64_t cuda_memory_free();
+
+    // CUDA device info
+    GOTORCH_API int cuda_device_count();
+    GOTORCH_API const char* cuda_device_name(int device_id);
+    GOTORCH_API int cuda_compute_capability(int device_id);
 
 #ifdef __cplusplus
 }
