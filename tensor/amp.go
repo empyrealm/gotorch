@@ -2,6 +2,7 @@
 package tensor
 
 import (
+	"github.com/empyrealm/gotorch/consts"
 	"github.com/empyrealm/gotorch/internal/torch"
 )
 
@@ -137,4 +138,80 @@ func DefaultAMPConfig() AMPConfig {
 // MulScalar multiplies tensor by scalar (helper for scaling).
 func (t *Tensor) MulScalar(s float64) *Tensor {
 	return New(torch.Scale(t.t, s))
+}
+
+// ============================================================================
+// Autocast - Automatic Mixed Precision Context
+// ============================================================================
+//
+// Autocast automatically converts operations to lower precision (FP16/BF16)
+// for faster computation on GPU Tensor Cores while keeping model weights in FP32.
+//
+// Usage:
+//
+//	autocast := tensor.NewAutocast(true, false) // FP16
+//	defer autocast.Close()
+//
+//	// All tensor operations here will use FP16 where safe
+//	output := model.Forward(input) // Automatically uses FP16
+//
+// ============================================================================
+
+// Autocast manages automatic mixed precision context.
+type Autocast struct {
+	enabled    bool
+	useBF16    bool
+	wasEnabled bool
+	oldDtype   consts.ScalarType
+}
+
+// NewAutocast creates an autocast context for mixed precision.
+// When enabled, tensor operations automatically use lower precision.
+//
+// Args:
+//
+//	enabled: Enable autocast (if false, this is a no-op).
+//	useBF16: Use BFloat16 instead of Float16 (better stability, same speed on Ampere+).
+func NewAutocast(enabled, useBF16 bool) *Autocast {
+	ac := &Autocast{
+		enabled:    enabled,
+		useBF16:    useBF16,
+		wasEnabled: torch.AutocastIsEnabled(),
+		oldDtype:   torch.AutocastGetDtype(),
+	}
+
+	if enabled {
+		// Set dtype before enabling.
+		if useBF16 {
+			torch.AutocastSetDtype(consts.KBFloat16)
+		} else {
+			torch.AutocastSetDtype(consts.KHalf)
+		}
+
+		torch.AutocastSetEnabled(true)
+		torch.AutocastIncrementNesting()
+	}
+
+	return ac
+}
+
+// Close disables autocast and restores previous state.
+// Always call this (use defer) to properly clean up.
+func (ac *Autocast) Close() {
+	if ac.enabled {
+		torch.AutocastDecrementNesting()
+		torch.AutocastSetEnabled(ac.wasEnabled)
+		torch.AutocastSetDtype(ac.oldDtype)
+	}
+}
+
+// IsEnabled returns true if autocast is currently active.
+func AutocastIsEnabled() bool {
+	return torch.AutocastIsEnabled()
+}
+
+// ClearAutocastCache clears the weight cache used by autocast.
+// Call this periodically to free memory if needed.
+func ClearAutocastCache() {
+	torch.AutocastClearCache()
 }

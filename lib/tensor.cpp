@@ -1,6 +1,7 @@
 #include "tensor.h"
 #include "exception.hpp"
 #include <torch/torch.h>
+#include <ATen/autocast_mode.h>
 
 tensor new_tensor(char **err)
 {
@@ -802,4 +803,48 @@ const char* cuda_sm_version()
 {
     static char version[32] = "Unknown";
     return version;
+}
+
+
+// ============================================================================
+// Autocast (Automatic Mixed Precision)
+// ============================================================================
+
+void autocast_set_enabled(bool enabled)
+{
+    at::autocast::set_autocast_enabled(at::kCUDA, enabled);
+}
+
+bool autocast_is_enabled()
+{
+    return at::autocast::is_autocast_enabled(at::kCUDA);
+}
+
+void autocast_set_dtype(int8_t dtype)
+{
+    at::ScalarType st = static_cast<at::ScalarType>(dtype);
+    at::autocast::set_autocast_dtype(at::kCUDA, st);
+}
+
+int8_t autocast_get_dtype()
+{
+    return static_cast<int8_t>(at::autocast::get_autocast_dtype(at::kCUDA));
+}
+
+void autocast_clear_cache()
+{
+    at::autocast::set_autocast_cache_enabled(false);
+    at::autocast::set_autocast_cache_enabled(true);
+}
+
+void autocast_increment_nesting()
+{
+    // Nesting is handled internally by LibTorch now.
+    // This is a no-op for compatibility.
+}
+
+void autocast_decrement_nesting()
+{
+    // Nesting is handled internally by LibTorch now.
+    // This is a no-op for compatibility.
 }

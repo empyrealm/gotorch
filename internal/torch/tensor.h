@@ -135,6 +135,15 @@ extern "C"
     GOTORCH_API const char* cuda_device_name();
     GOTORCH_API const char* cuda_sm_version();
 
+    // Autocast (Automatic Mixed Precision)
+    GOTORCH_API void autocast_set_enabled(bool enabled);
+    GOTORCH_API bool autocast_is_enabled();
+    GOTORCH_API void autocast_set_dtype(int8_t dtype);
+    GOTORCH_API int8_t autocast_get_dtype();
+    GOTORCH_API void autocast_clear_cache();
+    GOTORCH_API void autocast_increment_nesting();
+    GOTORCH_API void autocast_decrement_nesting();
+
 #ifdef __cplusplus
 }
 #endif
